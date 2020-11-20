@@ -16,6 +16,19 @@
 #endif
 extern String operator_list[];// resolve xor->operator ... semantic wasp parser really?
 
+
+bool closing(char ch, char closer) {
+
+	if (ch == '}' or ch == ']' or ch == ')') { // todo: ERROR if not opened before!
+//				if (ch != close and close != ' ' and close != '\t' /*???*/) // cant debug wth?
+		return true;
+	}// outer match unresolved so far
+
+
+	if (precedence(ch) > precedence(closer))return true;
+	return false;
+}
+
 #ifdef WASM64
 void* operator new[](unsigned long size){
 	last = current;
@@ -98,7 +111,7 @@ public:
 	static char *readFile(const char *filename) {
 #ifndef WASM
 		FILE *f = fopen(filename, "rt");
-		if (!f)raise("FILE NOT FOUND "_s + filename);
+		if (!f)error("FILE NOT FOUND "_s + filename);
 		fseek(f, 0, SEEK_END);
 		long fsize = ftell(f);
 		fseek(f, 0, SEEK_SET);  /* same as rewind(f); */
@@ -1013,7 +1026,7 @@ private:
 
 				case ':':
 					if (next == '=') { // f x:=2x
-						current.addRaw(new Node(":="));
+						current.addRaw(resolve(Node(":=")).setType(operators));
 						current.setType(expressions);
 //						current.setType(declaration); // later!
 						proceed();
@@ -1045,11 +1058,6 @@ private:
 						neu.parent = parent;
 						neu.addRaw(current);
 						current = neu;
-						while (ch!=close and ch!=0){// todo: outer close ok?
-							// now all elements in the block need to be treated as groups (don't flatten?)
-							Node *element = valueNode().clone();
-							current.addRaw(element);
-						}
 					}
 //					else {
 //						proceed();// acts as whitespace
@@ -1084,7 +1092,7 @@ private:
 				default: {
 					// a:b c != a:(b c)
 					// {a} ; b c vs {a} b c vs {a} + c
-					bool addFlat = lastNonWhite != ';' and lastNonWhite != ',' and previous != '\n';
+					bool addFlat = lastNonWhite != ';' and previous != '\n';
 					Node node = expression(close == ' ');//word();
 					if (precedence(node) and ch != ':') {
 						node.kind = operators;

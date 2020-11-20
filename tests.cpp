@@ -507,6 +507,7 @@ void testNewlineLists() {
 }
 
 void testKitchensink() {
+
 	Node node = Wasp::parseFile("samples/kitchensink.wasp");
 	assert(node['a'] == "classical json");
 	assert(node['b'] == "quotes optional");
@@ -1172,6 +1173,9 @@ void testGroupCascade(){
 	   "a2 b2 c2, d2 e2 f2; g2 h2 i2 , j2 k2 l2 \n}"
 	"{a3 b3 c3, d3 e3 f3; g3 h3 i3 , j3 k3 l3 \n"
  "a4 b4 c4 ,d4 e4 f4; g4 h4 i4 ,j4 k4 l4}");
+	result.log();
+	Node reparse = parse(result.serialize());
+	check(result == reparse);
 	check(result.kind==groups);
 	check(result.first().kind==objects);
 	check(result.first().first().kind==groups);// or expression if x is op
@@ -1197,7 +1201,7 @@ void tests() {
 	assert_is("[a b c]#2", "b");
 	assert_is("one plus two times three", 7);
 	testUnicode_UTF16_UTF32();
-	testGroupCascade();
+//	testGroupCascade();
 	testGraphQlQuery2();
 	testNilValues();
 	testCall();
@@ -1226,7 +1230,7 @@ void tests() {
 	testMarkMulti();
 	testMarkMulti2();
 	testCpp();
-	testErrors();
+//	testErrors();
 	testLists();
 	testDeepLists();
 	testGraphQlQuery();
@@ -1301,8 +1305,8 @@ void testCurrent() { // move to tests() once OK
 //	testAllWasm();
 //	exit(1);
 //	assert(eval("ç='☺'") == "☺");
-testGroupCascade();
-	testAllWasm();
+//testGroupCascade();
+//	testAllWasm();
 	tests();// make sure all still ok before changes
 	testAngle();
 	todos();// those not passing yet (skip)

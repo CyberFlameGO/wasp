@@ -150,7 +150,7 @@ bool isFunction(Node& op) {
 }
 
 bool isFunction(String op) {
-	return op.in(function_list) or op.in(functor_list);
+	return op.in(function_list);// or op.in(functor_list); if
 }
 
 
@@ -897,4 +897,16 @@ float precedence(Node &operater) {
 	if (operater.kind == groups or operater.kind == patterns) return precedence("if") * 0.999;// needs to be smaller than functor/function calls
 	if (operater.name.in(function_list))return 999;// function call
 	return precedence(name);
+}
+
+float precedence(char group) {
+	if(group==0)return 1;
+	if(group<0x20)return 1.5;
+	if(group=='\n')return 2;
+	if(group==';')return 3;
+	if(group==',')return 4;
+	if(group==' ')return 5;
+	if(group=='_')return 6;
+//	...
+error("unknown precedence for symbol"s+group);
 }

@@ -93,6 +93,7 @@ public:
 	Node *parent = nullptr;
 	Node *children = nullptr;// LIST, not link. block body content
 	Node *next = 0; // in children list
+	char grouper=0;// ";" ","
 
 	// a{b}(c)[d] == a{body=b}->c->d // param deep chain, attention in algorithms
 //	Node *param = nullptr;// LINK, not list. attributes meta modifiers decorators annotations
@@ -560,3 +561,4 @@ extern float function_precedence;
 float precedence(String name);
 
 float precedence(Node &operater);
+float precedence(char group); // special: don't mix
