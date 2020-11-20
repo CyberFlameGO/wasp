@@ -1153,6 +1153,13 @@ void testRemove(){
 	check(result==replaced);
 }
 
+void testRemove2(){
+	Node result=parse("a b c d");
+	result.remove(2,10);
+	const Node &replaced = parse("a b");
+	check(result==replaced);
+}
+
 void testReplace(){
 	Node result=parse("a b c d");
 	result.replace(1,2,new Node("x"));
@@ -1225,6 +1232,7 @@ void tests() {
 	testSort2();
 	testReplace();
 	testRemove();
+	testRemove2();
 	testUTF();// fails sometimes => bad pointer!?
 #ifdef APPLE
 	testAllSamples();
@@ -1261,6 +1269,7 @@ void todos() {
 
 void testCurrent() { // move to tests() once OK
 //	assert_is("√4+40", 42);
+
 
 //	testGraphQlQuery();
 //	testWasmFunctionDefiniton();

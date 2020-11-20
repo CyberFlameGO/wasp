@@ -554,6 +554,7 @@ public:
 
 typedef const Node Nodec;
 
+extern float function_precedence;
 float precedence(String name);
 
 float precedence(Node &operater);

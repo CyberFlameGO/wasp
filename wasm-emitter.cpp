@@ -250,16 +250,6 @@ bytes magicModuleHeader = new char[]{0x00, 0x61, 0x73, 0x6d};
 bytes moduleVersion = new char[]{0x01, 0x00, 0x00, 0x00};
 
 
-bytes flatten(bytes data) {
-	todo();
-	return data;
-}
-
-Code &flatten(Code &data) {
-	todo();
-	return data;
-}
-
 #ifdef WASM
 typedef char uint8_t;
 #endif
@@ -328,7 +318,7 @@ Code encodeVector(Code data) {
 //	return data.vector();
 	if (data.encoded)return data;
 //	Code code = unsignedLEB128(data.length) + flatten(data);
-	Code code = Code((byte) data.length) + flatten(data);
+	Code code = Code((byte) data.length) + data;
 	code.encoded = true;
 	return code;
 }
@@ -491,10 +481,18 @@ Code emitExpression(Node &node) { // expression, node or BODY (list)
 		code.addByte(0);// todo: LAST local?
 		return code;
 	}
-	if ((node.kind == reference or node.kind == groups) and functionIndices.has(name))
+	if (node.kind==call or (node.kind == reference or node.kind == groups) and functionIndices.has(name))
 		return emitCall(node);
 
 	switch (node.kind) {
+		case expressions:
+		case groups:
+		case objects:
+			for (Node child : node) {
+				const Code &expression = emitExpression(child);
+				code.push(expression);
+			};
+			break;
 		case call:
 			return emitCall(node);
 			break;
@@ -579,16 +577,6 @@ Code emitExpression(Node &node) { // expression, node or BODY (list)
 				code.addByte(local_index);
 			}
 		}
-			break;
-		case expressions:
-		case groups:
-		case objects:
-			for (Node child : node) {
-				if (child.name == "fib")
-					debug = 1;
-				const Code &expression = emitExpression(child);
-				code.push(expression);
-			};
 			break;
 		default:
 			error("unhandled node type: "s + typeName(node.kind));

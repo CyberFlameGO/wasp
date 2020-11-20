@@ -817,13 +817,14 @@ void Node::replace(int from, int to, Node *node) {
 }
 
 // INCLUDING to: [a b c d].remove(1,2)==[a d]
-void Node::remove(int from, int to) {
+void Node::remove(int from, int to) {// including
 	if(to<0)to = length;
 	if(to<from)to = from;
+	if(to>=length)to = length - 1;
 	int i=-1;
-	while (to + i++ <= length)
+	while (to + i++ < length)
 		children[from + i] = children[to + i + 1];// ok if beyond length
-	length = length - i;
+	length = length - (to-from) -1;
 }
 
 

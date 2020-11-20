@@ -144,15 +144,20 @@ Node If(Node n) {
 	}
 }
 
+bool isFunction(Node& op) {
+	if(op.kind == declaration)return false;
+	return op.name.in(function_list);
+}
+
 bool isFunction(String op) {
-	return op.in(function_list);
+	return op.in(function_list) or op.in(functor_list);
 }
 
 
 Node Node::evaluate(bool expectOperator /* = true*/) {
 	if (length == 0)return constants(*this);
 	if (length == 1) {
-		if (kind == operators or isFunction(name))
+		if (kind == operators or isFunction(*this))
 			return apply_op(NIL, *this, *children);
 		else return constants(children[0]);
 	}
@@ -217,7 +222,7 @@ Node Node::evaluate(bool expectOperator /* = true*/) {
 		right = right.flat();
 		Node left1 = left.flat();
 		Node result = apply_op(left1, *op, right);// <<<<<<<<<
-		if (isFunction(op->name) and not left.empty()) {
+		if (isFunction(*op) and not left.empty()) {
 			result = left.addRaw(result).evaluate();
 		}
 		return result;
@@ -235,7 +240,7 @@ Node eval(String code) {
 		return emit(analyze(parse(code))).run();// int -> Node todo: int* -> Node*
 }
 
-Node& groupIf(Node n);
+Node &groupIf(Node n);
 
 
 // if a then b else c == a and b or c
@@ -265,21 +270,21 @@ List<String> collectOperators(Node &expression) {
 
 //https://en.wikipedia.org/wiki/Operators_in_C_and_C%2B%2B#Operator_precedence
 List<String> rightAssociatives = {"=", "?:", "+=", "++:"};// a=b=1 == a=(b=1) => a=1
-List<String> prefixOperators = {"!", "√","-…","--…", "++…",  "+…", "~", "*…", "&…", "sizeof", "new", "delete[]"};
+List<String> prefixOperators = {"not", "!", "√", "-…", "--…", "++…", "+…", "~", "*…", "&…", "sizeof", "new", "delete[]"};
 List<String> suffixOperators = {"…++", "…--", "⁻¹", "⁰", "¹", "²", "³", "…%", "﹪", "％", "٪", "‰"};// ᵃᵇᶜᵈᵉᶠᵍʰᶥʲᵏˡᵐⁿᵒᵖʳˢᵗᵘᵛʷˣʸᶻ ⁻¹ ⁰ ⁺¹ ⁽⁾ ⁼ ⁿ
 List<String> declaration_operators = {":="};
 
 
 Node &groupOperators(Node &expression0) {
 	Node &expression = *expression0.clone();// modified in place!
-	if(expression.name=="if")return expression;// analyzed before!
+	if (expression.name == "if")return expression;// analyzed before!
 	List<String> operators = collectOperators(expression);
 	String last = "";
 	int last_position = 0;
 	for (String &op : operators) {
 		if (op != last)last_position = 0;
-		bool fromRight = rightAssociatives.has(op) or op.in(function_list);
-		fromRight=fromRight||prefixOperators.has(op); // !√!-1 == !(√(!(-1)))
+		bool fromRight = rightAssociatives.has(op) or isFunction(op);
+		fromRight = fromRight || prefixOperators.has(op); // !√!-1 == !(√(!(-1)))
 		int i = expression.index(op, last_position, fromRight);
 		if (i < 0) {
 			i = expression.index(op, last_position, fromRight);// try again for debug
@@ -288,20 +293,30 @@ Node &groupOperators(Node &expression0) {
 			error("operator missing "s + op);
 		}
 		Node &node = expression.children[i];
+		Node &next = expression.children[i + 1];
 		if (prefixOperators.has(node.name)) {// {++x
-			node.addRaw(expression.children[i + 1]);
+			node.addRaw(next);
 			expression.replace(i, i + 1, node);
-		} else if (suffixOperators.has(node.name)) { // x²
-			node.addRaw(expression.children[i - 1]);
-			expression.replace(i - 1, i, node);
-		} else if (node.name.in(function_list)) {
-			while (i++ < node.length)
-				node.addRaw(expression.children[i]);
-			expression.replace(i, node.length, node);
 		} else {
-			node.addRaw(expression.children[i - 1]);
-			node.addRaw(expression.children[i + 1]);
-			expression.replace(i - 1, i + 1, node);
+			Node &prev = expression.children[i - 1];
+			if (suffixOperators.has(node.name)) { // x²
+				node.addRaw(prev);
+				expression.replace(i - 1, i, node);
+			} else if (node.name.in(function_list)) {
+				while (i++ < node.length)
+					node.addRaw(expression.children[i]);
+				expression.replace(i, node.length, node);
+			} else if (isFunction(next)) { // 3 + double 8
+				Node rest = expression.from(i+1);
+				Node args = analyze(rest);
+				node.addRaw(prev);
+				node.addRaw(args);
+				expression.replace(i - 1, -1, node);
+			} else {
+				node.addRaw(prev);
+				node.addRaw(next);
+				expression.replace(i - 1, i + 1, node);
+			}
 		}
 		last_position = i;
 		last = op;
@@ -329,6 +344,16 @@ Node &groupDeclarations(Node &expression0) {
 	return expression;
 }
 
+bool hasFunction(Node &n) {
+	for (Node &child : n) {
+		if (precedence(child.name) == function_precedence)
+			return true;
+		if (child.name.in(function_list))
+			return true;
+	}
+	return false;
+}
+
 Node &groupFunctions(Node &expression0) {
 	Node &expression = *expression0.clone();
 	for (int i = 0; i < expression.length; ++i) {
@@ -342,16 +367,27 @@ Node &groupFunctions(Node &expression0) {
 //		else found function call!
 		int maxArity = 1;// todo
 		int minArity = 1;
-		Node lhs = expression.from(i + 1);
-		if(lhs.value.data){maxArity--;minArity--;}
-		if (lhs.length < maxArity)
+		Node rest = expression.from(i + 1);
+		if (rest.first().kind == groups)
+			rest = rest.first();
+		if (hasFunction(rest) and rest.first().kind != groups)
+			error("Ambiguous mixing of functions `ƒ 1 + ƒ 1 ` can be read as `ƒ(1 + ƒ 1)` or `ƒ(1) + ƒ 1` ");
+		// per-function precedence does NOT really increase readability or bug safety
+		if (rest.value.data) {
+			maxArity--;
+			minArity--;
+		}
+		if (rest.length < maxArity)
 			error("missing arguments for function %s, currying not yet supported"s % node.name);
-		else if (lhs.length == 0 and minArity > 0)
+		else if (rest.length == 0 and minArity > 0)
 			error("missing arguments for function %s, or to pass function pointer use func keyword"s % node.name);
-		else if (lhs.length >= maxArity) {
-			Node args = groupOperators(lhs);// todo: could contain another call!
+		else if (rest.length >= maxArity) {
+			Node args = groupOperators(rest);// todo: could contain another call!
 			node.addRaw(args);
-			expression.remove(i + 1, i + lhs.length);
+			if (rest.kind == groups)
+				expression.remove(i + 1, i + 1);
+			else
+				expression.remove(i + 1, i + rest.length);
 		} else
 			error("???");
 	}
@@ -421,7 +457,7 @@ Node groupOperators2(Node &expression) {
 }
 
 
-Node& groupIf(Node n) {
+Node &groupIf(Node n) {
 	if (n.length == 0 and !n.value.data)
 		error("no if condition given");
 	if (n.length == 1 and !n.value.data)
@@ -465,8 +501,8 @@ Node& groupIf(Node n) {
 //		condition = condition.values();
 
 
-	Node* eff = new Node("if");
-	Node& ef = *eff;
+	Node *eff = new Node("if");
+	Node &ef = *eff;
 	ef.kind = expressions;
 //	ef.kind = ifStatement;
 	ef["condition"] = groupOperators(condition);
@@ -540,7 +576,7 @@ Node Node::apply_op(Node left, Node op0, Node right) {
 	if (!lazy)
 		right = right.evaluate(false);
 
-	if (op.in(function_list))
+	if (isFunction(op))
 		return do_call(left, op0, right);
 
 	if (op0.kind == patterns)
@@ -713,7 +749,7 @@ Node Node::apply_op(Node left, Node op0, Node right) {
 	}
 	if (op == "else" or op == "then")return right;// consume by "if"! todo COULD be used as or if there is no 'if'
 	if (op == "if") return If(right);
-	if (op.in(function_list) or op.in(functor_list)) {
+	if (isFunction(op)) {
 //		kind=Type::function; // functor same concept, different arguments
 		// careful, functions take arguments, functors take bodies if(1,2,3)!=if{1}{2}{3}
 	}
@@ -725,6 +761,7 @@ Node Node::apply_op(Node left, Node op0, Node right) {
 
 
 Node &Angle::analyze(Node data) {
+	// group: {1;2;3} ( 1 2 3 ) expression: (1 + 2) tainted by operator
 	if (data.kind == groups or data.kind == objects) {
 		Node grouped = *data.clone();
 		grouped.children = 0;
@@ -769,6 +806,7 @@ Node emit(String code) {
 	return node;
 }
 
+float function_precedence = 1000;
 
 float precedence(String name) {
 	// like c++ here HIGHER up == lower value == more important
@@ -839,7 +877,7 @@ float precedence(String name) {
 	if (eq(name, "then"))return 11.15;
 	if (eq(name, "if"))return 100;
 	if (name.in(functor_list))// f 1 > f 2
-		return 1000;// if, while, ... statements calls outmost operation todo? add 3*square 4+1
+		return function_precedence;// if, while, ... statements calls outmost operation todo? add 3*square 4+1
 	return 0;// no precedence
 }
 
