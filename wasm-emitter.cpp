@@ -499,7 +499,8 @@ Code emitExpression(Node &node) { // expression, node or BODY (list)
 		case operators: {
 			if (name == "then")return emitIf(*node.parent);// pure if handled before
 			if (name == ":=")
-				return emitDeclaration(node.children[0], node.children[1]);
+				return emitDeclaration(node, node.first());
+//			return emitDeclaration(node.children[0], node.children[1]);
 			if (node.length < 1) {
 				node.log();
 				error("missing args for operator "s + name);
@@ -549,7 +550,8 @@ Code emitExpression(Node &node) { // expression, node or BODY (list)
 		}
 			break;
 		case declaration:
-			return emitDeclaration(node.children[0], node.children[1]);
+//			return emitDeclaration(node.children[0], node.children[1]);
+			return emitDeclaration(node, node.first());
 			break;
 		case nils:
 		case longs:
@@ -630,16 +632,20 @@ Code emitCall(Node &fun) {
 	return code;
 }
 
-Code emitDeclaration(Node fun, Node &body) {
+Code emitDeclaration2(Node fun, Node &body) {
+	// OLD SHIT
 	if (fun.name.empty()) {
 		fun = body[0].flat();
 	}
+
 	if (fun.name.empty())
 		error("NO SYMBOL NAME FOR declaration");
 
 	if (body.has(":="))
 		body = body.from(":=");
 //		error("parser error :=");
+}
+Code emitDeclaration(Node fun, Node &body) {
 	if (not functionIndices.has(fun.name)) {
 		functionIndices[fun.name] = functionIndices.size();
 	} else {
@@ -649,7 +655,6 @@ Code emitDeclaration(Node fun, Node &body) {
 	if (signature.size() == 0 and body.has("it", false, 100))
 		signature.add(i32);
 	functionSignatures[fun.name] = signature;
-
 
 //			body=*fun.begin()
 	Valtype returns = int32;// todo

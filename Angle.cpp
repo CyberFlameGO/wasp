@@ -12,8 +12,7 @@
 #include "Map.h"
 
 bool recursive = true;// whats that?
-
-
+List<String> declaredSymbols;// todo: buildup by preparsing
 
 String functor_list[] = {"if", "while", 0};// MUST END WITH 0, else BUG
 
@@ -146,6 +145,7 @@ Node If(Node n) {
 
 bool isFunction(Node& op) {
 	if(op.kind == declaration)return false;
+	if(declaredSymbols.has(op.name))return true;
 	return op.name.in(function_list);
 }
 
@@ -243,6 +243,11 @@ Node eval(String code) {
 Node &groupIf(Node n);
 
 
+String extractFunctionName(Node& node) {
+	// todo: public go home to family => go_home
+	return node.name;
+}
+
 // if a then b else c == a and b or c
 // (a op c) => op(a c)
 // further right means higher prescedence/binding, gets grouped first
@@ -326,18 +331,21 @@ Node &groupOperators(Node &expression0) {
 
 
 // a + b c + d
-
 Node &groupDeclarations(Node &expression0) {
 	Node &expression = *expression0.clone();
 	for (Node &node : expression) {
 		if (node.kind == declaration or declaration_operators.has(node.name)) {
 			// todo: public export function jaja (a:num …) := …
-			Node lhs = expression.to(node);
-			Node rhs = expression.from(node);
-			Node *decl = new Node();//node.name+":={…}");
+			Node modifiers = expression.to(node);// including public… :(
+			Node rest = expression.from(node);
+			Node *body = analyze(rest).clone();
+			String name = extractFunctionName(modifiers);
+			declaredSymbols.add(name);
+			Node *decl = new Node(name);//node.name+":={…}");
 			decl->setType(declaration);
-			decl->addRaw(analyze(lhs).clone());
-			decl->addRaw(analyze(rhs).clone());
+			decl->metas().add(modifiers);
+//			decl->addRaw(symbol);
+			decl->addRaw(body);// addChildren makes emitting harder
 			return *decl;
 		}
 	}
@@ -346,9 +354,7 @@ Node &groupDeclarations(Node &expression0) {
 
 bool hasFunction(Node &n) {
 	for (Node &child : n) {
-		if (precedence(child.name) == function_precedence)
-			return true;
-		if (child.name.in(function_list))
+		if(isFunction(child))
 			return true;
 	}
 	return false;
@@ -360,7 +366,7 @@ Node &groupFunctions(Node &expression0) {
 		Node &node = expression.children[i];
 		if (node.name == "if") // kinda functor
 			return groupIf(expression0.from("if"));
-		if (node.name.in(function_list)) // todo: may need preparsing of declarations!
+		if (isFunction(node)) // todo: may need preparsing of declarations!
 			node.kind = call;
 		if (node.kind != call)
 			continue;
@@ -368,10 +374,10 @@ Node &groupFunctions(Node &expression0) {
 		int maxArity = 1;// todo
 		int minArity = 1;
 		Node rest = expression.from(i + 1);
-		if (rest.first().kind == groups)
-			rest = rest.first();
 		if (hasFunction(rest) and rest.first().kind != groups)
 			error("Ambiguous mixing of functions `ƒ 1 + ƒ 1 ` can be read as `ƒ(1 + ƒ 1)` or `ƒ(1) + ƒ 1` ");
+		if (rest.first().kind == groups)
+			rest = rest.first();
 		// per-function precedence does NOT really increase readability or bug safety
 		if (rest.value.data) {
 			maxArity--;

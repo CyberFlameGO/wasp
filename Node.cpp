@@ -832,6 +832,12 @@ void Node::replace(int from, int to, Node &node) {
 	replace(from, to, &node);
 }
 
+Node& Node::metas() {
+	if(!meta)meta = new Node();
+	meta->setType(patterns);// naja!
+	return *meta;
+}
+
 void log(Node &n) {
 	n.log();
 }

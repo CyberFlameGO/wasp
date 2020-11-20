@@ -169,8 +169,9 @@ public:
 
 	Node &first() {
 		if (length > 0)return children[0];
-		error("No such element");
-		return ERROR;
+		return *this;
+//		error("No such element");
+//		return ERROR;
 	}
 
 //	if you do not declare a copy constructor, the compiler gives you one implicitly.
@@ -550,6 +551,7 @@ public:
 	void replace(int from, int to, Node *node);
 	void remove(int at, int to);
 
+	Node& metas();
 };
 
 typedef const Node Nodec;

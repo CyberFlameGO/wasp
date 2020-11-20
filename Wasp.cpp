@@ -1013,7 +1013,7 @@ private:
 
 				case ':':
 					if (next == '=') { // f x:=2x
-						current.addRaw(resolve(Node(":=")).setType(operators));
+						current.addRaw(new Node(":="));
 						current.setType(expressions);
 //						current.setType(declaration); // later!
 						proceed();
@@ -1045,6 +1045,11 @@ private:
 						neu.parent = parent;
 						neu.addRaw(current);
 						current = neu;
+						while (ch!=close and ch!=0){// todo: outer close ok?
+							// now all elements in the block need to be treated as groups (don't flatten?)
+							Node *element = valueNode().clone();
+							current.addRaw(element);
+						}
 					}
 //					else {
 //						proceed();// acts as whitespace
@@ -1079,7 +1084,7 @@ private:
 				default: {
 					// a:b c != a:(b c)
 					// {a} ; b c vs {a} b c vs {a} + c
-					bool addFlat = lastNonWhite != ';' and previous != '\n';
+					bool addFlat = lastNonWhite != ';' and lastNonWhite != ',' and previous != '\n';
 					Node node = expression(close == ' ');//word();
 					if (precedence(node) and ch != ':') {
 						node.kind = operators;

@@ -282,13 +282,14 @@ void testWasmMemoryIntegrity() {
 		}
 	}
 }
-void testRecentRandomBugs(){
+
+void testRecentRandomBugs() {
 	assert_emit("square 3", 9);
 	assert_emit("square (3+3)", (long) 36);
 	assert_emit("id (3+3)", (long) 6);
 	const Node &node = parse("x:40;x+1");
-	check(node.length==2)
-	check(node[0]["x"]==40)
+	check(node.length == 2)
+	check(node[0]["x"] == 40)
 
 
 //0 , 1 , 1 , 2 , 3 , 5 , 8 , 13 , 21 , 34 , 55 , 89 , 144
@@ -324,26 +325,27 @@ void testRecentRandomBugs(){
 //testWasmControlFlow
 void wasm_todos() {
 	assert_emit(("42.1"), 42.1) // main returns int, should be pointer to value!
+	skip(
+			testsFailingInWasm();
+			assert_emit("0.0", (long) 0);// can't emit float yet
+			assert_emit(("x*=14"), 1)
+			assert_emit(("x=15;x>=14"), 1)
+//			Ambiguous mixing of functions `ƒ 1 + ƒ 1 ` can be read as `ƒ(1 + ƒ 1)` or `ƒ(1) + ƒ 1`
+			assert_emit("id 3*42 > id 2*3", 1)
+			assert_emit("square 3*42 > square 2*3", 1)
+			assert_emit("double:=it*2; double 3*42 > double 2*3", 1)
+	)
 }
 
 void testAllWasm() {
 	// todo: reuse all tests via
 	//	interpret = false;
 	// constant things may be evaluated by compiler!
-	skip(
-			testsFailingInWasm();
-			assert_emit("0.0", (long) 0);// can't emit float yet
-			assert_emit(("x*=14"), 1)
-			assert_emit(("x=15;x>=14"), 1)
-
-//			Ambiguous mixing of functions `ƒ 1 + ƒ 1 ` can be read as `ƒ(1 + ƒ 1)` or `ƒ(1) + ƒ 1`
-			assert_emit("id 3*42 > id 2*3", 1)
-			assert_emit("square 3*42 > square 2*3", 1)
-
-	)
+	assert_emit("double:=it*2; double(3*42) > double 2*3", 1)
 	assert_emit("double:=it*2; double 3", 6)
 	assert_emit("double:=it*2; double 3*4", 24)
-	assert_emit("double:=it*2; double 3*42 > double 2*3", 1)
+	assert_emit("double:=it*2; double(3*42) > double 2*3", 1)
+
 	assert_emit("id(3*42) > id 2*3", 1)
 	assert_emit("square(3*42) > square 2*3", 1)
 
