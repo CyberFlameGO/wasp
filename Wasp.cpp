@@ -1051,7 +1051,7 @@ private:
 				case ',': {
 					// closing ' ' handled above
 					// ambiguity? 1+2;3  => list (1+2);3 => list  ok!
-					if (current.grouper and current.grouper != ch) {
+					if (current.grouper and current.grouper != ch or current.kind==expressions) {
 						Node neu;// wrap
 						neu.kind = groups;
 						neu.parent = parent;
