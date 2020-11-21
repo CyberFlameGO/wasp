@@ -901,6 +901,9 @@ float precedence(Node &operater) {
 
 float precedence(char group) {
 	if(group==0)return 1;
+	if(group=='}')return 1;
+	if(group==']')return 1;
+	if(group==')')return 1;
 	if(group<0x20)return 1.5;
 	if(group=='\n')return 2;
 	if(group==';')return 3;
@@ -908,5 +911,5 @@ float precedence(char group) {
 	if(group==' ')return 5;
 	if(group=='_')return 6;
 //	...
-error("unknown precedence for symbol"s+group);
+error("unknown precedence for symbol: "s+group);
 }

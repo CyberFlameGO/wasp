@@ -502,7 +502,7 @@ void testSample() {
 }
 
 void testNewlineLists() {
-	Node node = parse("  c: \"commas optional\"\n d: \"semicolons optional\"; e: \"trailing comments\"");
+	Node node = parse("  c: \"commas optional\"\n d: \"semicolons optional\"\n e: \"trailing comments\"");
 	assert(node['d'] == "semicolons optional");
 }
 
@@ -1307,6 +1307,8 @@ void testCurrent() { // move to tests() once OK
 //	assert(eval("ç='☺'") == "☺");
 //testGroupCascade();
 //	testAllWasm();
+	assert_is("(1,2,3)", Node(1, 2, 3, 0))
+	testNewlineLists();
 	tests();// make sure all still ok before changes
 	testAngle();
 	todos();// those not passing yet (skip)

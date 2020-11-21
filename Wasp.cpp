@@ -18,14 +18,12 @@ extern String operator_list[];// resolve xor->operator ... semantic wasp parser 
 
 
 bool closing(char ch, char closer) {
-
 	if (ch == '}' or ch == ']' or ch == ')') { // todo: ERROR if not opened before!
 //				if (ch != close and close != ' ' and close != '\t' /*???*/) // cant debug wth?
 		return true;
 	}// outer match unresolved so far
-
-
-	if (precedence(ch) > precedence(closer))return true;
+	if (precedence(ch) <= precedence(closer))
+		return true;
 	return false;
 }
 
@@ -962,7 +960,7 @@ private:
 					bool asListItem =
 							lastNonWhite == ',' or lastNonWhite == ';' or previous == ' ' and lastNonWhite != ':';
 					Node &object = valueNode('}', &current.last()).setType(Type::objects);
-					if(asListItem)
+					if (asListItem)
 						current.addRaw(object);
 					else
 						current.addSmart(object);
@@ -1007,10 +1005,10 @@ private:
 				case '`': {
 					if (previous == '\\')continue;// escape
 					bool matches = close == ch;
-					matches = matches || close==u'‘' && ch==u'’';
-					matches = matches || close==u'’' && ch==u'‘';
-					matches = matches || close==u'“' && ch==u'”';
-					matches = matches || close==u'”' && ch==u'“';
+					matches = matches || close == u'‘' && ch == u'’';
+					matches = matches || close == u'’' && ch == u'‘';
+					matches = matches || close == u'“' && ch == u'”';
+					matches = matches || close == u'”' && ch == u'“';
 					if (!matches) { // open string
 						if (current.last().kind == expressions)
 							current.last().addSmart(string(ch));
@@ -1023,10 +1021,9 @@ private:
 					current.addRaw(id);
 					break;
 				}
-
 				case ':':
 					if (next == '=') { // f x:=2x
-						current.addRaw(resolve(Node(":=")).setType(operators));
+						current.addRaw(new Node(":="));
 						current.setType(expressions);
 //						current.setType(declaration); // later!
 						proceed();
@@ -1048,25 +1045,29 @@ private:
 					}
 					break;
 				}
-				case '\n':
+				case '\n': // groupCascade
+				case '\t': // only in tables
 				case ';': // indent 􀋵  ☞ 𒋰 𒐂 ˆ ˃
+				case ',': {
 					// closing ' ' handled above
 					// ambiguity? 1+2;3  => list (1+2);3 => list  ok!
-					if (current.kind==expressions or current.kind==declaration or current.kind != groups and current.last()!=groups and current.kind != objects) {
+					if (current.grouper and current.grouper != ch) {
 						Node neu;// wrap
 						neu.kind = groups;
 						neu.parent = parent;
+						neu.grouper = ch;
 						neu.addRaw(current);
 						current = neu;
-					}
-//					else {
-//						proceed();// acts as whitespace
-//						break;// next expression
-//					}
-					// FALLTHROUGH! >>
+						char closer = ch;// need to keep troughout loop!
+						while (closing(ch, closer) and not closing(ch, close)) {// todo: outer close ok?
+							// now all elements in the block need to be treated as groups (don't flatten?)
+							Node *element = valueNode(closer).clone();
+							current.addRaw(element);
+						}
+					}// else fallthough!
+				}
 				case ' ': // possibly significant whitespace not consumed by white()
-				case '\t': // why not skip to default:symbol ... ?
-				case ',': {
+				{
 					proceed();
 					white();
 					break;

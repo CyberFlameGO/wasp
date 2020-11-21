@@ -675,7 +675,8 @@ const char *Node::serialize() const {
 		wasp += (this->kind == groups ? "(" : "{");
 		if (polish_notation and not this->name.empty())wasp += this->name;
 		for (Node &node : *this) {
-			wasp += " ";
+			if(grouper) wasp += grouper;
+			else wasp += " ";
 			wasp += node.serialize();
 		}
 		wasp += (this->kind == groups ? " )" : " }");
