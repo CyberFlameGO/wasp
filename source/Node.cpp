@@ -194,7 +194,7 @@ Node &Node::merge(Node &other) {
 	if (other.length == 0) {
 		neu.add(other);
 	}// else
-	for (Node &item:other) {
+	for (Node &item: other) {
 		neu.add(item);
 	}
 	return neu;
@@ -563,14 +563,10 @@ Node &Node::add(const Node *node) {
 	return *this;
 }
 
-Node &Node::add(const Node &node) {
-	if (&node == 0)return *this;
+Node &Node::add(Node node) {
 	return add(&node);
 }
 
-//void Node::add(Node node) {
-//	add(&node);
-//}
 //
 //Node &Node::add(Node &node) {
 //	if (!all)all = (Node *) calloc(sizeof(Node), capacity * maxNodes);
@@ -586,67 +582,52 @@ Node &Node::add(const Node &node) {
 //	length++;
 //	return *this;
 //}
+Node &Node::addSmart(Node *node) {
+	if (not node)return *this;
+	return addSmart(*node);
+}
 
-
-
-// todo remove redundant addSmart LOL!
-void Node::addSmart(Node node) {// merge?
+Node &Node::addSmart(Node &node, bool flat, bool toList, Type kind) {
+	// f (x) == f(x) ~= f x
+	if (node.isNil() and ::empty(node.name) and node.kind != longs)
+		return *this;// skipp nils!  (NIL) is unrepresentable and always ()! todo?
+	if (flat)node = node.flat();
+	if (toList)return add(node);//  a {x:1} ≠ a{x:1}
 	if (polish_notation and node.length > 0) {
-		if (name.empty())
-			name = node[0].name;
-		else
-			parent->add(node);// REALLY?
-		//			todo("polish_notation how?");
+		if (name.empty())name = node[0].name;
+		else parent->add(node);// REALLY?
 		Node args = node.from(node[0]);
 		add(args);
-		return;
 	}
-	// a{x:1} != a {x:1} but {x:1} becomes child of a
-	// a{x:1} == a:{x:1} ?
 	Node &letzt = last();
+
+	node.parent = this;
+	if (node.length == 1 and flat and ::empty(node.name))// (a) => a
+		node = node.last();
+
+	// todo a{x}{y z} => a({x},{y z})
 	// NOT use letzt for node.kind==patterns: {a:1 b:2}[a]
 	//	only prefixOperators
 	if (letzt.kind == functor and letzt.length == 0) {
 		// danger 1+2 grouped later but while(i>7) as child
 		letzt.add(node);// as meta?
-		return;
-	}
-	// f (x) == f(x) ~= f x
-
-	if (letzt.kind == reference or letzt.kind == key or
-	    letzt.name == "while" /*todo: functors, but not operators?*/)
-		letzt.addSmart(&node);
-	else if (name.empty() and kind != expression and kind != groups)// last().kind==reference)
-		letzt.addSmart(&node);
-	else
-		add(&node);// don't loop to addSmart lol
-}
-
-// todo remove redundant addSmart LOL!, and or merge with flat()
-void Node::addSmart(Node *node, bool flatten) { // flatten AFTER construction!
-	if (node->isNil() and ::empty(node->name) and node->kind != longs)
-		return;// skipp nils!  (NIL) is unrepresentable and always ()! todo?
-	node->parent = this;
-	if (node->length == 1 and flatten and ::empty(node->name))
-		node = &node->last();
-
-	//  or node->kind == patterns  DON'T flatten patterns!
-	if (not children and (node->kind == objects or node->kind == groups) and
-	    ::empty(node->name)) {
-		children = node->children;
-		length = node->length;
-		for (Node &child:*this)
+	} else if (letzt.kind == reference or letzt.kind == key or
+	           letzt.name == "while" /*todo: functors, but not operators?*/)
+		letzt.addSmart(node, false, true);
+	else if (name.empty() and kind != expression and kind != groups and
+	         not isPrimitive(letzt))// last().kind==reference)
+		letzt.addSmart(node, true, true);
+	else if (not children and (node.kind == objects or node.kind == groups) and ::empty(node.name)) {
+		children = node.children;
+		length = node.length;
+		for (Node &child: *this)
 			child.parent = this;
-		if (kind != groups) kind = node->kind; // todo: keep kind if … ?
+		if (kind != groups) kind = node.kind; // todo: keep kind if … ?
 	} else {
-		add(node);
+		return add(node);
 	}
-// todo a{x}{y z} => a{x,{y z}} BAD
+	return *this;
 }
-
-//void Node::addSmart(Node &node) {
-//	return addSmart(&node);
-//}
 
 
 //non-modifying
@@ -855,7 +836,7 @@ String Node::serialize() const {
 		if (polish_notation and not name.empty()) wasp += name;
 		int i = 0;
 		if (length > 0)
-			for (Node &node : *this) {
+			for (Node &node: *this) {
 				if (i++ > 0) wasp += separator ? String(separator) : " ";
 				wasp += node.serialize();
 			}
@@ -911,12 +892,12 @@ Node Node::from(int pos) {// inclusive
 Node Node::from(String match) {
 	Node lhs;
 	bool start = false;
-	for (Node child:*this) {
+	for (Node child: *this) {
 		if (start)lhs.add(&child);
 		if (child.name == match)start = true;
 	}
 	if (lhs.length == 0)
-		for (Node child:*this)
+		for (Node child: *this)
 			if (child.name == match)return child.values();
 	if (kind != call and kind != declaration)
 		lhs.kind = kind;
@@ -925,7 +906,7 @@ Node Node::from(String match) {
 
 Node Node::to(String match) {
 	Node rhs;
-	for (Node &child:*this) {
+	for (Node &child: *this) {
 		if (child.name == match)
 			break;
 		rhs.add(&child);
@@ -1119,7 +1100,7 @@ void Node::clear() {
 	value.data = 0;
 }
 
-String* Node::Line() {
+String *Node::Line() {
 	if (line)
 		return line;
 	if (parent)return parent->Line();
@@ -1181,3 +1162,14 @@ chars typeName(Type t) {
 			return "ERROR";
 	}
 }
+
+
+bool isPrimitive(Node node) {
+	Type type = node.kind;
+	if (type == longs or type == strings or type == reals or type == bools or type == arrays or type == buffers)
+		return true;
+	if (type == codepoints)// todo ...?
+		return true;
+	return false;
+}
+

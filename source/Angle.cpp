@@ -49,7 +49,6 @@ Valtype mapType(Node &n) {
 
 Node &groupWhile(Node n);
 
-bool isPrimitive(Node node);
 
 void fileSize(String filename);
 
@@ -317,15 +316,6 @@ bool isVariable(Node &node) {
 	return /*node.parent == 0 and*/ not node.name.empty() and node.name[0] >= 'A';// todo;
 }
 
-bool isPrimitive(Node node) {
-	Type type = node.kind;
-	if (type == longs or type == strings or type == reals or type == bools or type == arrays or type == buffers)
-		return true;
-	if (type == codepoints)// todo ...?
-		return true;
-	return false;
-}
-
 const Node Long("Long", classe);
 const Node Double("Double", classe);//.setType(type);
 //const Node Double{.name="Double", .kind=classe};//.setType(type);
@@ -347,7 +337,6 @@ bool addLocal(const char *context, String name, Valtype valtype);
 Node &groupTypes(Node &expression, const char *context) {
 	// todo delete type declarations double x, but not double x=7
 	// todo if expression.length = 0 and first.length=0 and not next is operator return ø
-	if (types.size() == 0)initTypes();
 	if (isType(expression)) {// double \n x,y,z  extra case :(
 		if (expression.length > 0) {
 			for (Node &typed:expression) {// double \n x = 4
@@ -1062,6 +1051,7 @@ void preRegisterSignatures() {
 
 void clearContext() {
 #ifndef RUNTIME_ONLY
+	if (types.size() == 0)initTypes();
 	globals.clear();
 	globals.setDefault(new Node());
 	functionIndices.clear();

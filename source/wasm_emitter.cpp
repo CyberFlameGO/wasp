@@ -1070,7 +1070,9 @@ Code emitExpression(Node &node, String context/*="main"*/) { // expression, node
 				return emitValue(node, context);
 //			else FALLTHROUGH to set x="123"!
 		case key: // todo i=ø
-			if (not isVariableName(name))
+			if (node.length == 1 and name.empty() and isVariableName(node.first().name))
+				name = node.first().name;// (x):y falltrough to reference
+			else if (not isVariableName(name))
 				todo("proper key emission");
 			// else:
 		case reference: {

@@ -20,6 +20,7 @@ bool is_operator(codepoint ch);// todo: next?
 
 extern bool data_mode;// stupid Intermediate solution to get html{color=blue} and while{color=blue} todo! auto
 
+
 #define nil 0
 #define null 0
 

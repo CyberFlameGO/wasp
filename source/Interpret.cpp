@@ -284,9 +284,9 @@ Node Node::apply_op(Node left, Node op0, Node right) {
 	}
 	if (op == "√") { // why String( on mac?
 		if (right.kind == reals)
-			left.addSmart(Node(sqrt1(right.value.real)));
+			left.addSmart(new Node(sqrt1(right.value.real)));
 		if (right.kind == longs)
-			left.addSmart(Node(sqrt1(right.value.longy)).setType(reals));
+			left.addSmart(Node(sqrt1(right.value.longy)).setType(reals), unknown);
 		return left.interpret();
 	}
 

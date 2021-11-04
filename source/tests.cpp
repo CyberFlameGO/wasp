@@ -124,15 +124,13 @@ void testRepresentations() {
 }
 
 void testSignificantWhitespace() {
-	result = parse("a b (c)");
-	check(result.length == 3);
 	result = parse("a b(c)");
 	check(result.length == 2 or result.length == 1);
 	result = parse("a b:c");
-	check(result.length == 2);// a , b:c
-	check(result.last().kind == key);// a , b:c
+	assert_equals(result.length, 2);// a , b:c
+	assert_equals(result.last().kind, key);// a , b:c
 	result = parse("a: b c d");
-	check(result.length == 3);
+	assert_equals(result.length, 3);
 	check(result.name == "a"); // "a"(b c d), NOT ((a:b) c d)
 	check(result.kind == groups);// not key!
 	result = parse("a b : c");
@@ -145,6 +143,8 @@ void testSignificantWhitespace() {
 	print(result);
 	result = analyze(result);
 	print(result);
+	result = parse("a b (c)");
+	assert_equals(result.length, 3);
 	skip(
 			check(result.length == 1);// todo  todo => (a b)=c => =( (a b) c)
 			data_mode = true;// HTML MODE!
@@ -1681,7 +1681,7 @@ void testNodeBasics() {
 	check(d.length == 0);
 	check(d == "e");
 	check(d.kind == key);
-	a.addSmart(b);// why?
+	a.addSmart(b, unknown);// why?
 }
 
 void testLogicOperators() {
@@ -2012,7 +2012,11 @@ void testCurrent() {
 	//	panicking = true;//
 	data_mode = true; // a=b => a{b}
 //	data_mode = false; // a=b => a,=,b before analysis
+// todo : (c) => {name:c kind:groups} should be ref!
 	clearContext();
+	assert_emit("double S1  = -1.6666", -1);
+	assert_is("2 +1", Node(2, 1, 0));
+	testSignificantWhitespace();
 //	testLogarithm();
 //	assert_emit("1 +1 == [1 1]", 1);
 
@@ -2045,8 +2049,8 @@ void testCurrent() {
 //	exit(1);
 	//	return;// let the webview show!
 	todos();// those not passing yet (skip)
-	testAllWasm();
 	tests();// make sure all still ok before changes
+	testAllWasm();
 	print("CURRENT TESTS PASSED");
 }
 

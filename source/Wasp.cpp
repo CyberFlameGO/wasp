@@ -47,7 +47,6 @@ char *current = (char *) HEAP_OFFSET;
 
 bool data_mode = true;// todo ooo! // tread '=' as ':' instead of keeping as expression operator  WHY would we keep it again??
 
-
 //List<codepoint>
 //List<chars> circumfixOperators/*Left*/ = {"‖", 0};
 //codepoint circumfixOperators[] = {u'‖', 0};
@@ -528,7 +527,7 @@ private:
 		return key;
 	};
 
-	Node hexadecimal_number() {
+	Node &hexadecimal_number() {
 		if (ch == '0')proceed();
 		if (ch == 'x' or ch == 'X')proceed();
 		int val = 0;
@@ -539,11 +538,11 @@ private:
 			else break;
 			proceed();
 		}
-		return Node(val);
+		return *new Node(val);
 	}
 
 	// Parse a number value.
-	Node numbero() {
+	Node &numbero() {
 		auto sign = '\n';
 		auto string = String("");
 		int number0, base = 10;
@@ -599,8 +598,8 @@ private:
 		}
 
 		if (string.contains(".")) {
-			if (sign == '-') return Node(-atof0(string.data));
-			else return Node(atof0(string.data));
+			if (sign == '-') return *new Node(-atof0(string.data));
+			else return *new Node(atof0(string.data));
 		}
 		if (sign == '-') {
 			number0 = -atoi0(string.data);
@@ -610,7 +609,7 @@ private:
 //		if (!isFinite(number)) {
 //			error("Bad number");
 //		} else {
-		return Node(number0); // {number0}; //wow cPP
+		return *new Node(number0); // {number0}; //wow cPP
 //		}
 	};
 
@@ -622,7 +621,7 @@ private:
 		return String((char) (uffff));// itoa0(uffff);
 	}
 
-	Node string(char delim = '"') {
+	Node &string(char delim = '"') {
 		proceed();
 		int start = at;
 		while (ch and ch != delim and previous != '\\')
@@ -811,8 +810,8 @@ private:
 	};
 
 
-	Node any_operator() {
-		Node node = Node(ch);
+	Node &any_operator() {
+		Node &node = *new Node(ch);
 		node.setType(operators);// todo ++
 		proceed();
 		while (ch == '=' or ch == previous) {// allow *= += ++ -- **  …
@@ -875,7 +874,7 @@ private:
 		return node;
 	}
 
-	Node symbol() {
+	Node &symbol() {
 		if (isDigit(ch))
 			return numbero();
 		if (ch == '.' and (isDigit(next)))
@@ -891,10 +890,10 @@ private:
 		if (is_operator(ch))
 			return any_operator();
 		if (is_identifier(ch))
-			return resolve(*new Node(identifier(), true));// or op
+			return (Node &) resolve(*new Node(identifier(), true));// or op
 		error("Unexpected symbol character "s + String((char) text[at]) + String((char) text[at + 1]) +
 		      String((char) text[at + 2]));
-		return NIL;
+		return (Node &) NIL;
 	}
 
 //	// {a:1 b:2} vs { x = add 1 2 }
@@ -921,18 +920,18 @@ private:
 	}
 
 	Node &expressione(codepoint closer) {
-		Node node = symbol();
+		Node &node = symbol();
 		if (lookahead_ambiguity())
 			return *node.clone();
 		// {a:1 b:2} vs { x = add 1 2 }
-		Node expressionas;
+		Node &expressionas = *new Node();
 		// set kind = expression only if it contains operator, otherwise keep it as list!!!
 		expressionas.add(node);
 		if (node.kind == operators) expressionas.kind = expression;//
 //		if (contains(import_keywords,node.name))
 //			closer =0;// get rest of line;
 		if (closing(ch, closer))// stop_at_space, keep it for further analysis (?)
-			return *expressionas.clone();
+			return expressionas;
 		white();
 		if (node.kind != operators) expressionas.kind = groups;
 		while (ch and ch != closer and (is_identifier(ch) or isalnum0(ch) or is_operator(ch))) {
@@ -943,8 +942,8 @@ private:
 		}
 //		expression.name=map(children.name)
 		if (expressionas.length > 1)
-			return *expressionas.clone();
-		else return *node.clone();
+			return expressionas;
+		else return node;
 	}
 
 	// Parse true, false, null, Infinity, NaN
@@ -1284,7 +1283,7 @@ private:
 // reason for strange name import instead of parse is better IDE findability, todo rename to parseNode()?
 	Node &valueNode(codepoint close = 0, Node *parent = 0) {
 		// A JSON value could be an object, an array, a string, a number, or a word.
-		Node current;
+		Node &current = *new Node();
 		current.parent = parent;
 		current.setType(groups);// may be changed later, default (1 2)==1,2
 #ifdef DEBUG
@@ -1320,7 +1319,7 @@ private:
 				group.setType(operators, false);// name==« (without »)
 				group.add(body);
 //				group.type = type("group")["field"]=grouper;
-				current.add(group);
+				current.add(group.clone());
 				continue;
 			}
 			switch (ch) {
@@ -1353,21 +1352,18 @@ private:
 					}
 					proceed();
 					// wrap {x} … or todo: just don't flatten before?
-					Node object = Node();
-					Node objectValue = valueNode(closingBracket(bracket), parent ? parent : &current.last());
-					object.addSmart(objectValue);
-//						object.add(objectValue);
+					Node &object = *new Node();
+					Node &objectValue = valueNode(closingBracket(bracket), parent ? parent : &current.last());
+//					current.addSmart(objectValue, flatten, asListItem, type);
+//					object.addSmart(objectValue);
+					object.add(objectValue);
 					if (flatten) object = object.flat();
 					object.setType(type, false);
 					object.separator = objectValue.separator;
 #ifdef DEBUG
 					object.line = &line;
 #endif
-					if (asListItem)
-						current.add(object);
-					else
-						current.addSmart(object);
-//					current.addSmart(&object,flatten);
+					current.addSmart(object, flatten, asListItem, type);
 					break;
 				}
 //			}// lists handled by ' '!
@@ -1385,11 +1381,11 @@ private:
 					}
 					if (isDigit(next) and
 					    (previous == 0 or contains(separator_list, previous) or is_operator(previous)))
-						current.addSmart(numbero());// (2+2) != (2 +2) !!!
+						current.addSmart(numbero(), unknown);// (2+2) != (2 +2) !!!
 					else if (ch == '-' and next == '.')// todo bad criterion 1-.9 is BINOP!
-						current.addSmart(numbero()); // -.9 -0.9 border case :(
+						current.addSmart(numbero(), unknown); // -.9 -0.9 border case :(
 					else {
-						Node *op = any_operator().clone();
+						Node &op = any_operator();
 						current.add(op);
 						current.kind = expression;
 					}
@@ -1408,12 +1404,12 @@ private:
 					matches = matches or (close == u'”' and ch == u'“');
 					if (!matches) { // open string
 						if (current.last().kind == expression)
-							current.last().addSmart(string(ch));
+							current.last().addSmart(string(ch), unknown);
 						else
 							current.add(string(ch).clone());
 						break;
 					}
-					Node id = Node(text.substring(start, at));
+					Node &id = *new Node(text.substring(start, at));
 					id.setType(Type::strings);// todo "3" could have be resolved as number? DONT do js magifuckery
 					current.add(id);
 					break;
@@ -1437,7 +1433,7 @@ private:
 						add_raw = true;// == *=
 
 					char prev = previous;// preserve
-					Node op = any_operator();// extend *= ...
+					Node &op = any_operator();// extend *= ...
 					if (not(op.name == ":" or (data_mode and op.name == "=")))
 						add_raw = true;// todo: treat ':' as implicit constructor and all other as expression for now!
 					if (op.name.length > 1)
@@ -1457,7 +1453,7 @@ private:
 						white();
 					} else if (ch == ' ') closer = ';';// a: b c == a:(b c) newline or whatever!
 					else closer = ' ';// immediate a:b c == (a:b),c
-					Node &val = *valueNode(closer, &key).clone();// applies to WHOLE expression
+					Node &val = valueNode(closer, &key);// applies to WHOLE expression
 					if (add_to_whole_expression and current.length > 1 and not add_raw) {
 						if (current.value.node)todo("multi-body a:{b}{c}");
 						current.setType(Type::key, false);// lose type group/expression etc ! ok?
@@ -1477,8 +1473,8 @@ private:
 						warn("indent block within list");
 						ch = '\n';// we assume it was not desired;)
 					} else {
-						Node element = valueNode(DEDENT);// todo stop copying!
-						current.addSmart(element.flat());
+						Node &element = valueNode(DEDENT);// todo stop copying!
+						current.addSmart(element.flat(), unknown);
 						if (not current.separator)
 							current.separator = '\n';// because
 						continue;
@@ -1502,13 +1498,13 @@ private:
 							neu.parent = parent;
 							neu.separator = ch;
 							neu.add(current);
-							current = neu;
+							current = *neu.clone();
 						} else
 							current.separator = ch;
 						char closer = ch;// need to keep troughout loop!
 						while (ch == closer) {// same separator a , b , c
 							proceed();
-							Node element = valueNode(closer);// todo stop copying!
+							Node &element = valueNode(closer);// todo stop copying!
 							current.add(element.flat());
 						}
 						break;
@@ -1540,7 +1536,7 @@ private:
 					// {a} ; b c vs {a} b c vs {a} + c
 					// todo: what a flimsy criterion:
 					bool addFlat = lastNonWhite != ';' and previous != '\n';
-					Node node = expressione(close);//word();
+					Node &node = expressione(close);//word();
 #ifdef DEBUG
 					node.line = &line;
 #endif
@@ -1568,7 +1564,8 @@ private:
 						else current.kind = expression;
 					}
 					if (node.length > 1 and addFlat) {
-						for (Node arg:node)current.add(arg);
+						for (Node &arg: node)
+							current.add(arg);
 						current.kind = node.kind;// was: expression
 					} else {
 						if (current.last().kind == operators)
@@ -1579,11 +1576,8 @@ private:
 				}
 			}
 		}
-
 		Node &result = current.flat();
-		return *result.
-
-				clone();
+		return result;
 	};
 
 };

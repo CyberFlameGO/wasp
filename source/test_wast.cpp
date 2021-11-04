@@ -48,8 +48,3 @@ void testParse() {
 
 }
 
-void testWast() {
-	polish_notation = true;
-	testParse();
-	polish_notation = false;
-}

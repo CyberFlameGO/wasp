@@ -14,7 +14,6 @@
 
 typedef char const *chars;
 typedef unsigned char byte;//!
-
 #define min(a, b) (a < b ? a : b)
 
 extern bool debug;
@@ -40,6 +39,7 @@ typedef chars chars;
 
 
 class Node;
+bool isPrimitive(Node node);
 
 //extern const Node True;
 //extern const Node False;
@@ -210,12 +210,12 @@ String* line = 0;// debug! EXPENSIVE for non ast nodes!
 // Require the last variable argument to be null, zero or whatever
 	explicit Node(int a, int b, ...) {
 		kind = objects;// groups list
-		add(Node(a).clone());
+		add(new Node(a));
 		va_list args;// WORK WITHOUT WASI!!
 		va_start(args, b);
 		int i = b;
 		while (i) {
-			addSmart(Node(i).clone());
+			addSmart(new Node(i));
 			i = (int) va_arg(args, int);
 		}
 		va_end(args);
@@ -225,13 +225,12 @@ String* line = 0;// debug! EXPENSIVE for non ast nodes!
 	// vargs needs to be 0 terminated, otherwise pray!
 	explicit Node(char *a, char *b, ...) {
 		kind = objects;// groups list
-		add(Node(a).clone());
+		add(new Node(a));
 		va_list args;
 		va_start(args, b);
 		char *i = b;
 		while (i) {
-			Node *node = Node(i).clone();
-			add(node);
+			add(new Node(a));
 			i = (char *) va_arg(args, char*);
 		}
 		va_end(args);
@@ -476,15 +475,14 @@ String* line = 0;// debug! EXPENSIVE for non ast nodes!
 	Node insert(Node &node, int at = -1);// non-modifying
 
 
-	//	Node &add(Node node);  call to member function 'add' is ambiguous
 	Node &add(const Node *node);
 
-	Node &add(const Node &node);
+	Node &add(Node node);
 
-//	void addSmart(Node &node);// modifying
-	void addSmart(Node node);
+	Node &addSmart(Node &node, bool flat = false, bool toList = false, Type kind = unknown);
 
-	void addSmart(Node *node, bool flatten = true);
+	Node &addSmart(Node *node);// modifying
+//	void addSmart(Node node);
 
 	void remove(Node *node); // directly from children
 	void remove(Node &node); // via compare children
