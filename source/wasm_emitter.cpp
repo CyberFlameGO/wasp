@@ -951,6 +951,8 @@ Code emitOperator(Node node, String context) {
 Valtype needsUpgrade(Valtype lhs, Valtype rhs, String string) {
 	if (lhs == float64 or rhs == float64)
 		return float64;
+	if ((lhs == int64 and rhs == int32) or (lhs == int32 and rhs == int64) )
+		return int64;
 	if (lhs == float32 or rhs == float32)return float32;
 	return none;
 }
@@ -1306,7 +1308,7 @@ Code cast(const Node &from, Node &to) {
 	if (to == Long)return cast(mapTypeToWasm(from), i64);
 	if (to == Double)return cast(mapTypeToWasm(from), f64);
 	Node calle("call");
-	calle.add(from);
+	calle.add(&from);
 	calle.add(to);
 	return emitCall(calle, "");// todo context?
 }

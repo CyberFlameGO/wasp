@@ -30,7 +30,7 @@ enum ParseOptions {
 };
 
 //List<String> collectOperators(Node &expression);// test/debug only
-Node parse(String code);// wasp -> data  // this is the pure Wasp part
+Node& parse(String code);// wasp -> data  // this is the pure Wasp part
 Node analyze(Node node, String context = "main");// wasp -> node  // build ast via operators
 Node eval(String code);// wasp -> code -> data   // interpreter mode vs:
 Node emit(String code);//  wasp -> code -> wasm  // to debug currently same as:

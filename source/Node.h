@@ -111,7 +111,7 @@ struct TypedNode {
 class Node {
 	// sizeof(Node) == 64 (20 for name,
 public:
-
+// KEEP name in first slot so that … it's “backwards compatible” with String?
 	String name = empty_name;// nil_name;
 	Value value;// value.node and next are NOT REDUNDANT  label(for:password):'Passwort' but children could be merged!?
 
@@ -215,7 +215,7 @@ String* line = 0;// debug! EXPENSIVE for non ast nodes!
 		va_start(args, b);
 		int i = b;
 		while (i) {
-			addSmart(new Node(i));
+			add(new Node(i));
 			i = (int) va_arg(args, int);
 		}
 		va_end(args);
@@ -230,7 +230,7 @@ String* line = 0;// debug! EXPENSIVE for non ast nodes!
 		va_start(args, b);
 		char *i = b;
 		while (i) {
-			add(new Node(a));
+			add(new Node(i));
 			i = (char *) va_arg(args, char*);
 		}
 		va_end(args);
@@ -477,7 +477,7 @@ String* line = 0;// debug! EXPENSIVE for non ast nodes!
 
 	Node &add(const Node *node);
 
-	Node &add(Node node);
+	Node &add(Node& node);
 
 	Node &addSmart(Node &node, bool flat = false, bool toList = false, Type kind = unknown);
 

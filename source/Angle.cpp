@@ -108,6 +108,11 @@ Node eval(String code) {
 
 Node &groupTypes(Node &expression, const char *context);
 
+Node normType(Node typ){
+	if(isType(typ))return types[typ.name];
+	else return typ;
+}
+
 List<Arg> extractFunctionArgs(String function, Node &params) {
 	//			left = analyze(left, name) NO, we don't want args to become variables!
 	List<Arg> args;
@@ -127,6 +132,7 @@ List<Arg> extractFunctionArgs(String function, Node &params) {
 				args.add({function, arg.name, arg.type ? *arg.type : nextType, params});
 		}
 	}
+	args.last().type = normType(args.last().type);
 	return args;
 }
 
@@ -386,7 +392,7 @@ Node &groupTypes(Node &expression, const char *context) {
 			typed.type = aType;
 			continue;
 		} else {
-			expression.remove(i, i);
+			expression.remove(i, i);// messes with type reference! pointing to wrong memory now!
 		}
 		while (isPrimitive(typed) or
 		       (typed.kind == reference and typed.length == 0)) {// BAD criterion for next!
@@ -520,7 +526,7 @@ Node &groupDeclarations(Node &expression, const char *context) {
 				if (locals[name].has(arg.name))
 					error("duplicate argument name: "s + arg.name);
 				addLocal(name, arg.name, mapType(arg.type));
-				signature.add(arg.type);// todo: arg type, or pointer
+				signature.add(arg.type);
 			}
 			if (signature.size() == 0 and parameters.size() == 0 and rest.has("it", false, 100)) {
 				addLocal(name, "it", f64);
@@ -573,7 +579,7 @@ Node &groupOperators(Node &expression, String context = "main") {
 	String last = "";
 	int last_position = 0;
 	for (String &op : operators) {
-		if (op == "-")
+		if (op == "*")
 			debug = true;
 		if (op == "-…") op = "-";// precedence hack
 		if (op == "%")functionSignatures["modulo_double"].is_used = true;

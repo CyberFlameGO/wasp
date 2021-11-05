@@ -377,7 +377,7 @@ public:
 		text = source;
 		while (empty(ch) and (ch or at < 0))
 			proceed();// at=0
-		Node result = valueNode(); // <<
+		Node& result = valueNode(); // <<
 		white();
 		if (ch and ch != -1 and ch != DEDENT) {
 			printf("UNEXPECTED CHAR %c", ch);
@@ -386,7 +386,7 @@ public:
 			result = ERROR;
 		}
 		// Mark does not support the legacy JSON reviver function todo ??
-		return *result.clone();
+		return result;
 	}
 
 
@@ -629,7 +629,7 @@ private:
 //		const String &substring = text.substring(start, at - 1);
 		String substring = text.substring(start, at);
 		proceed();
-		return Node(substring).setType(strings);// DONT do "3"==3 (here or ever)!
+		return *Node(substring).setType(strings).clone();// DONT do "3"==3 (here or ever)!
 	}
 
 // Parse a string value.
@@ -1210,6 +1210,7 @@ private:
 				key.kind = val.kind;
 			} else if (!val.isNil())
 				key.value.node = &val;// clone?
+//			key.value.node = val.clone();
 		}
 		return key;
 	}
@@ -1381,9 +1382,9 @@ private:
 					}
 					if (isDigit(next) and
 					    (previous == 0 or contains(separator_list, previous) or is_operator(previous)))
-						current.addSmart(numbero(), unknown);// (2+2) != (2 +2) !!!
+						current.addSmart(numbero());// (2+2) != (2 +2) !!!
 					else if (ch == '-' and next == '.')// todo bad criterion 1-.9 is BINOP!
-						current.addSmart(numbero(), unknown); // -.9 -0.9 border case :(
+						current.addSmart(numbero()); // -.9 -0.9 border case :(
 					else {
 						Node &op = any_operator();
 						current.add(op);
@@ -1404,7 +1405,7 @@ private:
 					matches = matches or (close == u'”' and ch == u'“');
 					if (!matches) { // open string
 						if (current.last().kind == expression)
-							current.last().addSmart(string(ch), unknown);
+							current.last().addSmart(string(ch));
 						else
 							current.add(string(ch).clone());
 						break;
@@ -1453,6 +1454,8 @@ private:
 						white();
 					} else if (ch == ' ') closer = ';';// a: b c == a:(b c) newline or whatever!
 					else closer = ' ';// immediate a:b c == (a:b),c
+
+					// GET VALUE
 					Node &val = valueNode(closer, &key);// applies to WHOLE expression
 					if (add_to_whole_expression and current.length > 1 and not add_raw) {
 						if (current.value.node)todo("multi-body a:{b}{c}");
@@ -1474,7 +1477,7 @@ private:
 						ch = '\n';// we assume it was not desired;)
 					} else {
 						Node &element = valueNode(DEDENT);// todo stop copying!
-						current.addSmart(element.flat(), unknown);
+						current.addSmart(element.flat());
 						if (not current.separator)
 							current.separator = '\n';// because
 						continue;
@@ -1568,10 +1571,7 @@ private:
 							current.add(arg);
 						current.kind = node.kind;// was: expression
 					} else {
-						if (current.last().kind == operators)
-							current.addSmart(&node.flat());
-						else
-							current.add(&node.flat());
+						current.addSmart(node,true,current.last().kind != operators);
 					}
 				}
 			}
@@ -1670,7 +1670,7 @@ Node run(String source) {
 }
 
 //static
-Node parse(String source) {
+Node& parse(String source) {
 	operator_list = List<chars>(operator_list0);// wasm hack
 	// WE HAVE A GENERAL PROBLEM:
 	// 1. top level objects are not constructed True
@@ -1678,7 +1678,7 @@ Node parse(String source) {
 
 
 	printf("Parsing: %s\n", source.data);
-	if (!source.data)return NIL;
+	if (!source.data)return (Node&)NIL;
 	return Wasp().read(source);
 }
 

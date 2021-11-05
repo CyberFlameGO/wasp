@@ -303,6 +303,7 @@ bool Node::operator==(chars other) {
 	if (kind == strings and value.data)
 		if (eq(value.string->data, other, value.string->shared_reference ? value.string->length : -1)) return true;
 	if (eq(name.data, other, name.shared_reference ? name.length : -1))return true;// todo really name==other?
+	if(kind==reference and length==0)return name == other;
 	if (kind == key and value.node and *value.node == other)return true;
 	return false;
 }
@@ -546,13 +547,8 @@ Node &Node::add(const Node *node) {
 		return *this;
 	if (kind == longs or kind == reals)
 		error("can't modify primitives, only their referenceIndices a=7 a.nice=yes");
-	if (length >= capacity - 1) {
-		puti(length + 1);
-		puts(">=");
-		puti(capacity);
-		puts(name);
-		error("Out of node Memory");
-	}
+	if (length >= capacity - 1)
+		error("Out of node capacity: "s + capacity + " for " + name);
 	if (lastChild >= maxNodes)
 		error("Out of global Memory");
 	if (!children) children = (Node *) calloc(sizeof(Node), capacity);
@@ -563,32 +559,16 @@ Node &Node::add(const Node *node) {
 	return *this;
 }
 
-Node &Node::add(Node node) {
+Node &Node::add(Node& node) {
 	return add(&node);
 }
 
-//
-//Node &Node::add(Node &node) {
-//	if (!all)all = (Node *) calloc(sizeof(Node), capacity * maxNodes);
-//	if (length >= capacity - 1)
-//		error("Out of node Memory");
-//	if (lastChild >= maxNodes)
-//		error("Out of global Memory");
-//	if (!children) children = &all[capacity * lastChild++];
-//	if (length > 0)
-//		children[length - 1].next = &children[length];
-//	children[length] = node;
-////	children[length].parent = this;
-//	length++;
-//	return *this;
-//}
 Node &Node::addSmart(Node *node) {
 	if (not node)return *this;
 	return addSmart(*node);
 }
 
 Node &Node::addSmart(Node &node, bool flat, bool toList, Type kind) {
-	// f (x) == f(x) ~= f x
 	if (node.isNil() and ::empty(node.name) and node.kind != longs)
 		return *this;// skipp nils!  (NIL) is unrepresentable and always ()! todo?
 	if (flat)node = node.flat();
@@ -599,7 +579,9 @@ Node &Node::addSmart(Node &node, bool flat, bool toList, Type kind) {
 		Node args = node.from(node[0]);
 		add(args);
 	}
+
 	Node &letzt = last();
+	bool has_last=length>0;
 
 	node.parent = this;
 	if (node.length == 1 and flat and ::empty(node.name))// (a) => a
@@ -608,15 +590,21 @@ Node &Node::addSmart(Node &node, bool flat, bool toList, Type kind) {
 	// todo a{x}{y z} => a({x},{y z})
 	// NOT use letzt for node.kind==patterns: {a:1 b:2}[a]
 	//	only prefixOperators
-	if (letzt.kind == functor and letzt.length == 0) {
-		// danger 1+2 grouped later but while(i>7) as child
-		letzt.add(node);// as meta?
-	} else if (letzt.kind == reference or letzt.kind == key or
-	           letzt.name == "while" /*todo: functors, but not operators?*/)
-		letzt.addSmart(node, false, true);
-	else if (name.empty() and kind != expression and kind != groups and
-	         not isPrimitive(letzt))// last().kind==reference)
-		letzt.addSmart(node, true, true);
+
+	// f (x) == f(x) ~= f x
+	if(has_last) {
+		if (letzt.kind == functor and letzt.length == 0) {
+			// danger 1+2 grouped later but while(i>7) as child
+			letzt.add(node);// as meta?
+		} else if (letzt.kind == operators) {
+			add(node); // no precedence yet!!
+		} else if (letzt.kind == reference or letzt.kind == key or
+		           letzt.name == "while" /*todo: functors, but not operators?*/)
+			letzt.addSmart(node);
+		else if (name.empty() and kind != expression and kind != groups and
+		         not isPrimitive(letzt))// last().kind==reference)
+			letzt.addSmart(node);
+	}
 	else if (not children and (node.kind == objects or node.kind == groups) and ::empty(node.name)) {
 		children = node.children;
 		length = node.length;
@@ -926,7 +914,12 @@ Node Node::to(Node match) {
 Node &Node::flat() {
 //	if (kind == call)return *this;//->clone();
 	if (kind == patterns)return *this;// never flatten patterns x=[] "hi"[1] …
-	if (length == 0 and kind == key and name.empty() and value.node)return *value.node;
+	if (kind == key and length == 0 and  name.empty() and value.node)return *value.node;
+	if (kind == key and length==1  and name.empty() and first().kind==reference and not type){
+		name=first().name; // (a):b => a:b  todo: merge meta
+		type = first().type;
+		return *this;
+	}
 	if (length == 1) {
 		Node &child = children[0];
 		if (child.kind == patterns and kind != groups)// huh?
@@ -1019,6 +1012,7 @@ void Node::replace(int from, int to, Node *node) {
 }
 
 // INCLUDING to: [a b c d].remove(1,2)==[a d]
+// DANGER!  messes with child references! pointing to wrong memory now!
 void Node::remove(int from, int to) {// including
 	if (to < 0)to = length;
 	if (to < from)to = from;

@@ -2014,14 +2014,9 @@ void testCurrent() {
 //	data_mode = false; // a=b => a,=,b before analysis
 // todo : (c) => {name:c kind:groups} should be ref!
 	clearContext();
-	assert_emit("double S1  = -1.6666", -1);
-	assert_is("2 +1", Node(2, 1, 0));
-	testSignificantWhitespace();
-//	testLogarithm();
-//	assert_emit("1 +1 == [1 1]", 1);
+	testSwitch();
 
-	result = parse("a b(c)");
-	check(result.length == 2 or result.length == 1);
+	//	testLogarithm();
 
 //	auto uff = "r = S2 + z*(S3 - z*S4) + z*w*(S5 + z*S6)";
 	auto uff = "double sin(x){a}";
